@@ -1,0 +1,13 @@
+# Ignore log files
+.log
+
+# Ignore build artifacts
+*.o
+*.obj
+*.exe
+
+# Ignore IDE-specific files (e.g., Eclipse, IntelliJ)
+.project
+.iml
+.classpath
+
