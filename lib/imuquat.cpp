@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cmath>
+#include <cstdint>
 #include <unistd.h>
 #include <sys/time.h>
 #include "imuquat.h"
-
 int fd;
 
+long last_loop_time;
 Vector3f accel, gyro;
 float temperature;
 float qw, qx, qy, qz;
@@ -30,7 +32,7 @@ short read_raw_data(int addr) {
     value = (high_byte << 8) | low_byte;
     return value;
 }
-
+// returns true if it's was time to read
 void mpu6050_read() {
     accel.x = read_raw_data(ACCEL_XOUT_H) / 2048.0; // 16g
     accel.y = read_raw_data(ACCEL_XOUT_H + 2) / 2048.0;
@@ -41,6 +43,18 @@ void mpu6050_read() {
     gyro.x = read_raw_data(GYRO_XOUT_H) / 16.4; // 2000 deg/s
     gyro.y = read_raw_data(GYRO_XOUT_H + 2) / 16.4;
     gyro.z = read_raw_data(GYRO_XOUT_H + 4) / 16.4;
+#ifdef DEBUG
+    {
+	printf("accel.xyz(%-8.6lf,%-8.6lf,%-8.6lf),\t gyro.xyz(%-8.6lf,%-8.6lf,%-8.6lf) \ttemperature %-2.3lf ->\t",
+		    accel.x,	
+		    accel.y,	
+		    accel.z,	
+		    gyro.x,
+		    gyro.y,
+		    gyro.z,
+		    temperature);
+    }
+#endif
 }
 
 long long current_timestamp() {
@@ -54,6 +68,22 @@ long long current_timestamp() {
 MadgwickFilter filter = {1.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0};
 
 float invSqrt(float x) {
+    union {
+        float f;
+        std::uint32_t i;
+    } conv;
+
+    float halfx = 0.5f * x;
+    conv.f = x;
+    conv.i = 0x5f3759df - (conv.i >> 1);
+    float y = conv.f;
+    y = y * (1.5f - (halfx * y * y));
+    y = y * (1.5f - (halfx * y * y));
+    return y;
+}
+/* from quake, gives warnings 
+ *
+float invSqrt(float x) {
     float halfx = 0.5f * x;
     float y = x;
     long i = *(long*)&y;
@@ -63,7 +93,7 @@ float invSqrt(float x) {
     y = y * (1.5f - (halfx * y * y));
     return y;
 }
-
+*/
 void madgwick_update(MadgwickFilter* f, float gx, float gy, float gz, float ax, float ay, float az) {
     float recipNorm;
     float s0, s1, s2, s3;
@@ -141,12 +171,25 @@ void madgwick_update(MadgwickFilter* f, float gx, float gy, float gz, float ax, 
     f->q1 *= recipNorm;
     f->q2 *= recipNorm;
     f->q3 *= recipNorm;
+#ifdef DEBUG
+	printf("quat.0,1,2,3(%-7.4lf,%-7.4lf,%-7.4lf,%-7.4lf) ",
+			f->q0,f->q1,f->q2,f->q3);
+#endif	
+}
+// from ai
+float quaternion_to_pitch(float qw, float qx, float qy, float qz) {
+    float denominator = 1.0f - 2.0f * (qx * qx + qy * qy);
+    
+    if (denominator < 0.00001f || denominator > 0.99999f) { // add a small value to avoid division by zero
+        denominator = 0.00001f; // set the denominator to a small non-zero value
+    }
+    
+    return atan2(2.0f * (qw * qy + qx * qz), denominator);
 }
 
-float quaternion_to_pitch(float qw, float qx, float qy, float qz) {
+/*float quaternion_to_pitch(float qw, float qx, float qy, float qz) {
     return atan2(2.0f * (qw * qy - qz * qx), 1.0f - 2.0f * (qx * qx + qy * qy)) * RAD_TO_DEG;
-}
-long last_loop_time;
+}*/
 bool imuSetup() {
     fd = wiringPiI2CSetup(MPU6050_ADDR);
     if (fd == -1) {
@@ -172,10 +215,8 @@ bool GetPitch(float *pitch)   {
 		madgwick_update(&filter, gyro.x, gyro.y, gyro.z, accel.x, accel.y, accel.z);
 		*pitch = quaternion_to_pitch(filter.q0, filter.q1, filter.q2, filter.q3);
 		return true;	
-//		adjust_balance_pid(pitch);
-
-//		printf("Pitch: %.2f\n", pitch);
-	} 
+	}
+	else printf("waiting %lld\n",current_time - last_loop_time);	
 	return false;
 }
 

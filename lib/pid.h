@@ -6,17 +6,14 @@
 
 class PID {
 public:
-
     enum class Mode : uint8_t {
         MANUAL = 0,
         AUTOMATIC = 1
     };
-
     enum class Direction : uint8_t {
         DIRECT = 0,
         REVERSE = 1
     };
-
     enum class ProportionalMode : uint8_t {
         P_ON_M = 0,
         P_ON_E = 1
@@ -47,29 +44,27 @@ public:
     double getKd() const { return dispKd; }
     Mode getMode() const { return mode; }
     Direction getDirection() const { return direction; }
+    double* getSetpoint() const { return setpoint; }	
+    void setSetpoint(double newSetpoint) { *setpoint = newSetpoint; }
 
 private:
     void initialize();
 
-    // Tuning parameters
-    double dispKp, dispKi, dispKd;
-    double kp, ki, kd;
-
-    // Configuration
-    Direction direction;
-    ProportionalMode pMode;
-
-    // Working variables
+    // Reordered member variables to match initialization order
     double* input;
     double* output;
     double* setpoint;
+    double dispKp, dispKi, dispKd;
+    double kp, ki, kd;
+    Mode mode;
+    Direction direction;
+    ProportionalMode pMode;
     std::chrono::steady_clock::time_point lastTime;
     double outputSum, lastInput;
     std::chrono::milliseconds sampleTime;
     double outMin, outMax;
     bool inAuto;
     bool pOnE;
-    Mode mode;
 };
 
 #endif // PID_H

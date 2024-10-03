@@ -1,3 +1,5 @@
+#include <iostream>
+#include <filesystem>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -6,6 +8,7 @@
 #include <wiringSerial.h>
 
 #include "pid.h"
+#include "PidConf.h"
 #include "rpi_hoverserial.h"
 #include "imuquat.h"
 
@@ -25,6 +28,7 @@ double Kp = 6.5, Ki = 0.04, Kd = 0.3; // You'll need to tune these values
 //double Kp = 5, Ki = 0.1, Kd = 0.05; // You'll need to tune these values
 
 PID myPID(&input, &output, &setpoint, Kp, Ki, Kd, PID::ProportionalMode::P_ON_E,PID::Direction::DIRECT);
+PIDConfigManager configManager("PID.conf",myPID);
 RPiHoverSerial HSerial;
 void setupPID() {
   myPID.setMode(PID::Mode::AUTOMATIC);
@@ -36,10 +40,20 @@ void setupPID() {
 }
 
 void TalkToHoverCPU(float pitch) {
+//static int LastMappedPitch;
   int mappedPitch = map(pitch, PID_OUTPUT_LIMIT, -PID_OUTPUT_LIMIT, -1000, 1000);
-  printf("Mapped Pitch: %04d\n" ,mappedPitch);
-  HSerial.send(0, mappedPitch);
+  //if (mappedPitch!=LastMappedPitch) {
+//	  LastMappedPitch = mappedPitch;
+#ifdef DEBUG	  
+	  printf("Mapped Pitch: %04d\n" ,mappedPitch);	  
+//  }	
+//  else printf("\n"); 
+#else
+//	}
+#endif
+  HSerial.send(0, mappedPitch); // we are sending every time, might not need to
 }
+/*
 void adjustBalancePID(float pitch) {
 	input = pitch;
 	myPID.compute();
@@ -63,10 +77,16 @@ void adjustBalancePID(float pitch) {
 	// Call your existing function to communicate with the Hover CPU
 	TalkToHoverCPU(output);
 } 
-
+*/
 void adjust_balance_pid(float pitch) {
     input = pitch;
+#ifdef DEBUG    
+    printf("pitch %-3.4f ",pitch);
+#endif  
     myPID.compute();
+#ifdef DEBUG    
+    printf("after pid %-3.4f ",output);
+#endif  
 
     int motorSpeed = abs(output);
     
@@ -88,12 +108,16 @@ void adjust_balance_pid(float pitch) {
 int main() {
 	if (!imuSetup()) return 1;
 
-	if (!HSerial.begin(115200,"dev/ttyAMA0")) return 1;
+	if (!HSerial.begin(115200,"/dev/ttyAMA0")) return 1;
 
 	setupPID();
+    // Start the config watcher in a separate thread
+    std::thread watcherThread(&PIDConfigManager::watchForChanges, &configManager);
 	float pitch;
 	while(1) {
-	if (GetPitch(&pitch))
-		adjust_balance_pid(pitch);	
+		if (GetPitch(&pitch))	{
+			adjust_balance_pid(pitch);	
+		}
 	}
+    watcherThread.join();
 }

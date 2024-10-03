@@ -1,21 +1,33 @@
 #include "pid.h"
 #include <algorithm>
 #include <chrono>
-
 PID::PID(double *input, double *output, double *setpoint,
          double kp, double ki, double kd,
          ProportionalMode pMode, Direction direction)
-    : input(input), output(output), setpoint(setpoint),
-      mode(Mode::MANUAL), direction(direction), pMode(pMode),
-      sampleTime(std::chrono::milliseconds(100)),  // default 100ms sample time
-      outMin(0), outMax(255),  // default output limits
-      inAuto(false), pOnE(pMode == ProportionalMode::P_ON_E)
+    : input(input)
+    , output(output)
+    , setpoint(setpoint)
+    , dispKp(kp)
+    , dispKi(ki)
+    , dispKd(kd)
+    , kp(kp)
+    , ki(ki)
+    , kd(kd)
+    , mode(Mode::MANUAL)
+    , direction(direction)
+    , pMode(pMode)
+    , lastTime(std::chrono::steady_clock::now() - std::chrono::milliseconds(100))
+    , outputSum(0)
+    , lastInput(0)
+    , sampleTime(std::chrono::milliseconds(100))  // default 100ms sample time
+    , outMin(0)
+    , outMax(255)  // default output limits
+    , inAuto(false)
+    , pOnE(pMode == ProportionalMode::P_ON_E)
 {
     setOutputLimits(0, 255);  // default output limits
     setControllerDirection(direction);
     setTunings(kp, ki, kd, pMode);
-
-    lastTime = std::chrono::steady_clock::now() - sampleTime;
 }
 
 bool PID::compute() {
