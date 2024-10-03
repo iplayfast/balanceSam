@@ -1,5 +1,5 @@
-**Balance Bot System README**
-==========================
+**Balance Bot System**
+======================
 
 **License**
 ----------
