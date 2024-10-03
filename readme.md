@@ -25,16 +25,13 @@ This project is licensed under the **GNU General Public License (GPL) version 2*
 1.  Clone this repository: `git clone https://github.com/your-username/balance-bot-system.git`
 2.  Modify PID.conf to have good starting parameters
 3.  make release or make debug
-4.  sudo release/balanceSam or sudo debug/balanceSam
-5.  In another terminal edit PID.conf and the code will automatically notice the file change and load the new values.
-
 
 
 **Running the Application**
 ---------------------------
 
-1.  Run the application: `python main.py`
-2.  Access the web interface at <http://localhost:5000>
+1.  sudo release/balanceSam or sudo debug/balanceSam
+2.  In another terminal edit PID.conf and the code will automatically notice the file change and load the new values.
 
 **Troubleshooting**
 ------------------
