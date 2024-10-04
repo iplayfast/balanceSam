@@ -184,7 +184,7 @@ float quaternion_to_pitch(float qw, float qx, float qy, float qz) {
         denominator = 0.00001f; // set the denominator to a small non-zero value
     }
     
-    return atan2(2.0f * (qw * qy + qx * qz), denominator);
+    return atan2(2.0f * (qw * qy + qx * qz), denominator) * RAD_TO_DEG;
 }
 
 /*float quaternion_to_pitch(float qw, float qx, float qy, float qz) {
